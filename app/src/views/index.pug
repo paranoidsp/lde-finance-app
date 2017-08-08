@@ -1,0 +1,79 @@
+html
+    head
+        title="Economic Profit Analysis"
+        script(src='https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js')
+        script(src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js")
+        link(rel='stylesheet', href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css")
+        script(src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.6.0/Chart.bundle.min.js")
+        script(src="https://github.com/hasura/js-sdk/releases/download/v0.1.3/hasura.min.js")
+        script(src="https://rawgit.com/chartjs/Chart.js/master/samples/utils.js")
+        script.
+            $(document).ready(function(){
+            hasura.setProject('callback66')
+
+            // Get sector list
+            hasura.data.query({
+                type: 'select',
+                args: {
+                        "table":"stocks",
+                        "columns":["*"]
+                    }},
+                (data) => makeDropdown(data),
+                (error) => { console.log(error); }
+            );
+            function makeDropdown(data){
+                div = $('#dropdown-select')
+                div.html = ''
+                $.each(data, function (k, v){
+                    div.append('<option value="'+ v.sector_name + '">' + v.sector_name + '</option>')
+                })
+            }
+            $('#dropdown-select').on('change', function(e){
+                console.log(e);
+                hasura.data.query({
+                    type: 'select',
+                    args: {
+                            "table":"stocks",
+                            "columns":["*",{
+                                "name":"financials",
+                                "columns":["ep_ratio", "year"],
+                                "order_by": "year"
+                            }],
+                            "order_by":"sector_name"
+                        }},
+                    (data) => hasuraSuccess(data),
+                    (error) => { console.log(error); }
+                );
+                function hasuraSuccess(data){
+                    var sector = $("#dropdown-select").val()
+                    var ctx = document.getElementById('canvas').getContext('2d');
+                    console.log(data);
+                    console.log(sector)
+                    sectors = data.filter(function(elem){
+                        return elem.sector_name === sector;
+                    })
+                    console.log(sectors)
+                    var lineChartData = {
+                        labels : ['2013', '2014', '2015', '2016', '2017'],
+                        datasets :[
+                        ]
+                        }
+                        $.each(sectors, function(k,v){
+                            lineChartData.datasets.push({
+                                label: v.stock_name,
+                                //-backgroundColor: window.chartColors.blue,
+                                borderColor: window.chartColors.red,
+                                data : [v.financials[0].ep_ratio, v.financials[1].ep_ratio, v.financials[2].ep_ratio, v.financials[3].ep_ratio, v.financials[4].ep_ratio]
+                            })
+                            });
+                    var myChart = new Chart(ctx, {type: 'line', data: lineChartData,options: { responsive: false, maintainAspectRatio: true}});
+                }
+            })
+
+            });
+    body
+        h1="CHARTS HERE"
+        div(class="dropdown col-md-8")
+            select(class="form-control" id="dropdown-select") Sectors
+        div(class="data")
+        canvas(id="canvas" width="800" height="400")
